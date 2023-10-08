@@ -5,7 +5,7 @@ import zipfile
 from typing import Optional
 
 from gptcache import cache, Cache
-from gptcache.adapter import openai
+from gptcache.adapter import bigdl_llm_serving
 from gptcache.adapter.api import (
     get,
     put,
@@ -81,15 +81,9 @@ async def get_cache_file(key: str = "") -> FileResponse:
                 zipf.write(os.path.join(root, file))
     return FileResponse(zip_filename)
 
-openai.api_key = "EMPTY"
-openai.api_base = "http://localhost:8000/v1"
-
-model = "llama-7b-bigdl"
-prompt = "Once upon a time"
-
 cache.init()
-os.environ["OPENAI_API_KEY"] = "API KEY"
-cache.set_openai_key()
+os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1" 
+cache.set_bigdl_llm_serving()
 
 @app.api_route(
     "/v1/chat/completions",
