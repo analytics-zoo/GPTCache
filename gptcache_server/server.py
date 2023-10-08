@@ -13,6 +13,7 @@ from gptcache.adapter.api import (
     init_similar_cache_from_config,
 )
 from gptcache.processor.pre import last_content
+from gptcache.processor.pre import get_last_content_or_prompt
 from gptcache.utils import import_fastapi, import_pydantic, import_starlette
 
 import_fastapi()
@@ -81,7 +82,9 @@ async def get_cache_file(key: str = "") -> FileResponse:
                 zipf.write(os.path.join(root, file))
     return FileResponse(zip_filename)
 
-cache.init()
+cache.init(
+    pre_embedding_func=get_last_content_or_prompt
+)
 os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1" 
 cache.set_bigdl_llm_serving()
 
