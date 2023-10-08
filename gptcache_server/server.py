@@ -102,12 +102,12 @@ async def chat(request: Request):
     print("messages:", params.get("messages"))
     try:
         start_time = time.time()
-        completion = openai.ChatCompletion.create(
+        completion = bigdl_llm_serving.ChatCompletion.create(
             model=params.get("model"),
             messages=params.get("messages")
         )
         try:
-            res_text = openai.get_message_from_openai_answer(completion)
+            res_text = bigdl_llm_serving.get_message_from_openai_answer(completion)
             consume_time = time.time() - start_time
             print("cache hint time consuming: {:.2f}s".format(consume_time))
             print(res_text)
@@ -123,7 +123,7 @@ async def chat(request: Request):
         return JSONResponse(content=res)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"openai error: {e}")
+        raise HTTPException(status_code=500, detail=f"bigdl llm serving error: {e}")
 
 @app.api_route(
     "/v1/completions",
@@ -141,7 +141,7 @@ async def completions(request: Request):
     print("prompt:", params.get("prompt"))
     try:
         start_time = time.time()
-        completion = openai.Completion.create(
+        completion = bigdl_llm_serving.Completion.create(
             model=params.get("model"),
             prompt=params.get("prompt")
         )
@@ -154,7 +154,7 @@ async def completions(request: Request):
         return JSONResponse(content=res)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"openai error: {e}")
+        raise HTTPException(status_code=500, detail=f"bigdl llm serving error: {e}")
 
 def main():
     parser = argparse.ArgumentParser()
@@ -170,19 +170,6 @@ def main():
     parser.add_argument("-k", "--cache-file-key", default="", help="the cache file key")
     parser.add_argument(
         "-f", "--cache-config-file", default=None, help="the cache config file"
-    )
-    parser.add_argument(
-        "-o",
-        "--openai",
-        type=bool,
-        default=False,
-        help="whether to open the openai completes proxy",
-    )
-    parser.add_argument(
-        "-of",
-        "--openai-cache-config-file",
-        default=None,
-        help="the cache config file of the openai completes proxy",
     )
 
     args = parser.parse_args()
