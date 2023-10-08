@@ -56,8 +56,8 @@ cache.init(
     config=Config(similarity_threshold=0.95),
 )
 
+os.environ["OPENAI_API_KEY"] = "EMPTY"
 os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
-openai.api_key = "EMPTY" 
 cache.set_bigdl_llm_serving()
 
 
@@ -123,21 +123,20 @@ async def chat(request: Request):
 
     print("messages:", params.get("messages"))
     try:
-        start_time = time.time()
+        start_time = time.perf_counter()
         completion = bigdl_llm_serving.ChatCompletion.create(
-            model=params.get("model"),
-            messages=params.get("messages")
+            **params
         )
         try:
             res_text = bigdl_llm_serving.get_message_from_openai_answer(completion)
-            consume_time = time.time() - start_time
-            print("cache hint time consuming: {:.2f}s".format(consume_time))
+            consume_time = time.perf_counter() - start_time
+            print("cache hint time consuming: {:.3f}s".format(consume_time))
             print(res_text)
             res = res_text
             succ_count += 1
         except:
-            consume_time = time.time() - start_time
-            print("cache not hint time consuming: {:.2f}s".format(consume_time))
+            consume_time = time.perf_counter() - start_time
+            print("cache not hint time consuming: {:.3f}s".format(consume_time))
             print(completion.choices[0].message.content)
             res = completion.choices[0].message.content
             fail_count += 1
@@ -162,13 +161,12 @@ async def completions(request: Request):
 
     print("prompt:", params.get("prompt"))
     try:
-        start_time = time.time()
+        start_time = time.perf_counter()
         completion = bigdl_llm_serving.Completion.create(
-            model=params.get("model"),
-            prompt=params.get("prompt")
+            **params
         )
-        consume_time = time.time() - start_time
-        print("completions time consuming: {:.2f}s".format(consume_time))
+        consume_time = time.perf_counter() - start_time
+        print("completions time consuming: {:.3f}s".format(consume_time))
         print(completion["choices"][0]["text"])
         res = completion["choices"][0]["text"]
         fail_count += 1
