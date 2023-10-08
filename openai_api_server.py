@@ -154,9 +154,6 @@ async def completions(request: Request):
     import_starlette()
     from starlette.responses import StreamingResponse, JSONResponse
 
-    succ_count = 0
-    fail_count = 0
-
     params = await request.json()
 
     print("prompt:", params.get("prompt"))
@@ -169,8 +166,6 @@ async def completions(request: Request):
         print("completions time consuming: {:.3f}s".format(consume_time))
         print(completion["choices"][0]["text"])
         res = completion["choices"][0]["text"]
-        fail_count += 1
-
         return JSONResponse(content=res)
 
     except Exception as e:
