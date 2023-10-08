@@ -203,9 +203,9 @@ def get_last_content_or_prompt(data: Dict[str, Any], **_: Dict[str, Any]) -> Any
     Example:
         .. code-block:: python
 
-            from gptcache.processor.pre import get_prompt
+            from gptcache.processor.pre import get_last_content_or_prompt
 
-            content = get_prompt({"prompt": "foo"})
+            content = get_last_content_or_prompt({"prompt": "foo"})
             # "foo"
     """
     ret = data.get("messages")
