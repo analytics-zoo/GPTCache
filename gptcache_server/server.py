@@ -22,7 +22,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 import uvicorn
 from pydantic import BaseModel
-
+import time
 
 app = FastAPI()
 openai_cache: Optional[Cache] = None
@@ -81,65 +81,86 @@ async def get_cache_file(key: str = "") -> FileResponse:
                 zipf.write(os.path.join(root, file))
     return FileResponse(zip_filename)
 
+openai.api_key = "EMPTY"
+openai.api_base = "http://localhost:8000/v1"
+
+model = "llama-7b-bigdl"
+prompt = "Once upon a time"
+
+cache.init()
+os.environ["OPENAI_API_KEY"] = "API KEY"
+cache.set_openai_key()
 
 @app.api_route(
     "/v1/chat/completions",
     methods=["POST", "OPTIONS"],
 )
 async def chat(request: Request):
-    if openai_cache is None:
-        raise HTTPException(
-            status_code=500,
-            detail=f"the gptcache server doesn't open the openai completes proxy",
-        )
 
     import_starlette()
     from starlette.responses import StreamingResponse, JSONResponse
 
-    openai_params = await request.json()
-    is_stream = openai_params.get("stream", False)
-    headers = request.headers
-    auth_header = headers.get("authorization", None)
-    openai_key = auth_header.split(" ")[1] if auth_header else ""
-    cache_skip = openai_params.pop("cache_skip", False)
-    if cache_skip is False:
-        messages = openai_params.get("messages")
-        if "/cache_skip " in messages[0]["content"]:
-            cache_skip = True
-            content0 = openai_params.get("messages")[0]["content"]
-            openai_params.get("messages")[0]["content"] = str(content0).replace("/cache_skip ", "")
-        elif "/cache_skip " in messages[-1]["content"]:
-            cache_skip = True
-            content0 = openai_params.get("messages")[-1]["content"]
-            openai_params.get("messages")[-1]["content"] = str(content0).replace("/cache_skip ", "")
-        print("cache_skip:", cache_skip)
-    print("messages:", openai_params.get("messages"))
-    try:
-        if is_stream:
-            def generate():
-                for stream_response in openai.ChatCompletion.create(
-                    cache_obj=openai_cache,
-                    cache_skip=cache_skip,
-                    api_key=openai_key,
-                    **openai_params,
-                ):
-                    if stream_response == "[DONE]":
-                        yield "data: [DONE]\n\n"
-                        break
-                    yield f"data: {json.dumps(stream_response)}\n\n"
+    succ_count = 0
+    fail_count = 0
 
-            return StreamingResponse(generate(), media_type="text/event-stream")
-        else:
-            openai_response = openai.ChatCompletion.create(
-                cache_obj=openai_cache,
-                cache_skip=cache_skip,
-                api_key=openai_key,
-                **openai_params,
-            )
-            return JSONResponse(content=openai_response)
+    params = await request.json()
+
+    print("messages:", params.get("messages"))
+    try:
+        start_time = time.time()
+        completion = openai.ChatCompletion.create(
+            model=params.get("model"),
+            messages=params.get("messages")
+        )
+        try:
+            res_text = openai.get_message_from_openai_answer(completion)
+            consume_time = time.time() - start_time
+            print("cache hint time consuming: {:.2f}s".format(consume_time))
+            print(res_text)
+            res = res_text
+            succ_count += 1
+        except:
+            consume_time = time.time() - start_time
+            print("cache not hint time consuming: {:.2f}s".format(consume_time))
+            print(completion.choices[0].message.content)
+            res = completion.choices[0].message.content
+            fail_count += 1
+
+        return JSONResponse(content=res)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"openai error: {e}")
 
+@app.api_route(
+    "/v1/completions",
+    methods=["POST", "OPTIONS"],
+)
+async def completions(request: Request):
+    import_starlette()
+    from starlette.responses import StreamingResponse, JSONResponse
+
+    succ_count = 0
+    fail_count = 0
+
+    params = await request.json()
+
+    print("prompt:", params.get("prompt"))
+    try:
+        start_time = time.time()
+        completion = openai.Completion.create(
+            model=params.get("model"),
+            prompt=params.get("prompt")
+        )
+        consume_time = time.time() - start_time
+        print("completions time consuming: {:.2f}s".format(consume_time))
+        print(completion["choices"][0]["text"])
+        res = completion["choices"][0]["text"]
+        fail_count += 1
+
+        return JSONResponse(content=res)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"openai error: {e}")
 
 def main():
     parser = argparse.ArgumentParser()
@@ -171,42 +192,6 @@ def main():
     )
 
     args = parser.parse_args()
-    global cache_dir
-    global cache_file_key
-
-    if args.cache_config_file:
-        init_conf = init_similar_cache_from_config(config_dir=args.cache_config_file)
-        cache_dir = init_conf.get("storage_config", {}).get("data_dir", "")
-    else:
-        init_similar_cache(args.cache_dir)
-        cache_dir = args.cache_dir
-    cache_file_key = args.cache_file_key
-
-    if args.openai:
-        global openai_cache
-        openai_cache = Cache()
-        if args.openai_cache_config_file:
-            init_similar_cache_from_config(
-                config_dir=args.openai_cache_config_file,
-                cache_obj=openai_cache,
-            )
-        else:
-            init_similar_cache(
-                data_dir="openai_server_cache",
-                pre_func=last_content,
-                cache_obj=openai_cache,
-            )
-
-        import_starlette()
-        from starlette.middleware.cors import CORSMiddleware
-
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
 
     uvicorn.run(app, host=args.host, port=args.port)
 

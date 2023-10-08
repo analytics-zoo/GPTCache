@@ -115,7 +115,7 @@ class Cache:
     def set_openai_key():
         import_openai()
         import openai  # pylint: disable=C0415
-
+        openai.api_base = os.getenv("OPENAI_API_BASE")
         openai.api_key = os.getenv("OPENAI_API_KEY")
 
     @staticmethod
