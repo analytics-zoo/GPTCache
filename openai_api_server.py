@@ -4,14 +4,13 @@ import os
 import zipfile
 from typing import Optional
 
-from gptcache import cache, Cache
+from gptcache import cache, Cache, Config
 from gptcache.adapter import bigdl_llm_serving, openai
-from gptcache.adapter.api import (
-    get,
-    put,
-    init_similar_cache,
-    init_similar_cache_from_config,
-)
+from gptcache.adapter.api import get, put
+from gptcache.manager import get_data_manager, CacheBase, VectorBase
+from gptcache.similarity_evaluation.onnx import OnnxModelEvaluation
+from gptcache.embedding import Onnx as EmbeddingOnnx
+from gptcache.similarity_evaluation.distance import SearchDistanceEvaluation
 from gptcache.processor.pre import last_content
 from gptcache.processor.pre import get_last_content_or_prompt
 from gptcache.utils import import_fastapi, import_pydantic, import_starlette
@@ -30,10 +29,36 @@ openai_cache: Optional[Cache] = None
 cache_dir = ""
 cache_file_key = ""
 
-
 class CacheData(BaseModel):
     prompt: str
     answer: Optional[str] = ""
+
+embedding_onnx = EmbeddingOnnx()
+class WrapEvaluation(SearchDistanceEvaluation):
+    def evaluation(self, src_dict, cache_dict, **kwargs):
+        return super().evaluation(src_dict, cache_dict, **kwargs)
+
+    def range(self):
+        return super().range()
+
+sqlite_file = "sqlite.db"
+faiss_file = "faiss.index"
+has_data = os.path.isfile(sqlite_file) and os.path.isfile(faiss_file)
+
+cache_base = CacheBase("sqlite")
+vector_base = VectorBase("faiss", dimension=embedding_onnx.dimension)
+data_manager = get_data_manager(cache_base, vector_base, max_size=100000)
+cache.init(
+    pre_embedding_func=get_last_content_or_prompt,
+    embedding_func=embedding_onnx.to_embeddings,
+    data_manager=data_manager,
+    similarity_evaluation=WrapEvaluation(),
+    config=Config(similarity_threshold=0.95),
+)
+
+os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
+openai.api_key = "EMPTY" 
+cache.set_bigdl_llm_serving()
 
 
 @app.get("/")
@@ -81,13 +106,6 @@ async def get_cache_file(key: str = "") -> FileResponse:
             for file in files:
                 zipf.write(os.path.join(root, file))
     return FileResponse(zip_filename)
-
-cache.init(
-    pre_embedding_func=get_last_content_or_prompt
-)
-os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
-openai.api_key = "EMPTY" 
-cache.set_bigdl_llm_serving()
 
 @app.api_route(
     "/v1/chat/completions",
