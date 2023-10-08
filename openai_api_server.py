@@ -5,7 +5,7 @@ import zipfile
 from typing import Optional
 
 from gptcache import cache, Cache
-from gptcache.adapter import bigdl_llm_serving
+from gptcache.adapter import bigdl_llm_serving, openai
 from gptcache.adapter.api import (
     get,
     put,
@@ -85,7 +85,8 @@ async def get_cache_file(key: str = "") -> FileResponse:
 cache.init(
     pre_embedding_func=get_last_content_or_prompt
 )
-os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1" 
+os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
+openai.api_key = "EMPTY" 
 cache.set_bigdl_llm_serving()
 
 @app.api_route(
