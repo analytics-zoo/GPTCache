@@ -51,7 +51,7 @@ cache.init(
 )
 
 os.environ["OPENAI_API_KEY"] = "EMPTY"
-os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
+os.environ["BIGDL_LLM_SERVING_API_BASE"] = "http://localhost:8000/v1"
 cache.set_bigdl_llm_serving()
 
 

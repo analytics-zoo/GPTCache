@@ -121,7 +121,7 @@ class Cache:
     def set_bigdl_llm_serving():
         import_openai()
         import openai  # pylint: disable=C0415
-        openai.api_base = os.getenv("OPENAI_API_BASE")
+        openai.api_base = os.getenv("BIGDL_LLM_SERVING_API_BASE")
         openai.api_key = os.getenv("OPENAI_API_KEY")
 
     @staticmethod
