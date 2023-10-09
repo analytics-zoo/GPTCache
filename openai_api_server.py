@@ -100,19 +100,12 @@ async def chat(request: Request):
         completion = bigdl_llm_serving.ChatCompletion.create(
             **params
         )
-        try:
-            res_text = bigdl_llm_serving.get_message_from_openai_answer(completion)
-            consume_time = time.perf_counter() - start_time
-            print("cache hint time consuming: {:.3f}s".format(consume_time))
-            print(res_text)
-            res = res_text
-            succ_count += 1
-        except:
-            consume_time = time.perf_counter() - start_time
-            print("cache not hint time consuming: {:.3f}s".format(consume_time))
-            print(completion.choices[0].message.content)
-            res = completion.choices[0].message.content
-            fail_count += 1
+
+        res_text = bigdl_llm_serving.get_message_from_openai_answer(completion)
+        consume_time = time.perf_counter() - start_time
+        print("chat time consuming: {:.3f}s".format(consume_time))
+        print(res_text)
+        res = res_text
 
         return JSONResponse(content=res)
 
