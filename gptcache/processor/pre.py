@@ -211,8 +211,12 @@ def get_last_content_or_prompt(data: Dict[str, Any], **_: Dict[str, Any]) -> Any
     ret = data.get("messages")
     if ret is None:
         ret = data.get("prompt")
+        if ret is not None:
+            ret = "prompt: %s" % ret
     else:
         ret = ret[-1]["content"]
+        if ret is not None:
+            ret = "last_content: %s" % ret
     return ret
 
 def get_file_name(data: Dict[str, Any], **_: Dict[str, Any]) -> str:
