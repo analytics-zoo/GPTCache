@@ -27,33 +27,34 @@ import time
 app = FastAPI()
 openai_cache: Optional[Cache] = None
 
-embedding_onnx = EmbeddingOnnx()
-class WrapEvaluation(SearchDistanceEvaluation):
-    def evaluation(self, src_dict, cache_dict, **kwargs):
-        return super().evaluation(src_dict, cache_dict, **kwargs)
-
-    def range(self):
-        return super().range()
-
 sqlite_file = "sqlite.db"
 faiss_file = "faiss.index"
-has_data = os.path.isfile(sqlite_file) and os.path.isfile(faiss_file)
+bigdl_llm_serving_base = "http://localhost:8000/v1"
+def init_cache():
+    embedding_onnx = EmbeddingOnnx()
+    class WrapEvaluation(SearchDistanceEvaluation):
+        def evaluation(self, src_dict, cache_dict, **kwargs):
+            return super().evaluation(src_dict, cache_dict, **kwargs)
 
-cache_base = CacheBase("sqlite")
-vector_base = VectorBase("faiss", dimension=embedding_onnx.dimension)
-data_manager = get_data_manager(cache_base, vector_base, max_size=100000)
-cache.init(
-    pre_embedding_func=get_last_content_or_prompt,
-    embedding_func=embedding_onnx.to_embeddings,
-    data_manager=data_manager,
-    similarity_evaluation=WrapEvaluation(),
-    config=Config(similarity_threshold=0.95),
-)
+        def range(self):
+            return super().range()
 
-os.environ["OPENAI_API_KEY"] = "EMPTY"
-os.environ["BIGDL_LLM_SERVING_API_BASE"] = "http://localhost:8000/v1"
-cache.set_bigdl_llm_serving()
+    has_data = os.path.isfile(sqlite_file) and os.path.isfile(faiss_file)
 
+    cache_base = CacheBase("sqlite")
+    vector_base = VectorBase("faiss", dimension=embedding_onnx.dimension)
+    data_manager = get_data_manager(cache_base, vector_base, max_size=100000)
+    cache.init(
+        pre_embedding_func=get_last_content_or_prompt,
+        embedding_func=embedding_onnx.to_embeddings,
+        data_manager=data_manager,
+        similarity_evaluation=WrapEvaluation(),
+        config=Config(similarity_threshold=0.95),
+    )
+
+    os.environ["OPENAI_API_KEY"] = "EMPTY"
+    os.environ["BIGDL_LLM_SERVING_API_BASE"] = bigdl_llm_serving_base
+    cache.set_bigdl_llm_serving()
 
 @app.get("/")
 async def hello():
@@ -145,8 +146,23 @@ def main():
     parser.add_argument(
         "-p", "--port", type=int, default=8000, help="the port to listen on"
     )
-
+    parser.add_argument(
+        "--sqlite_file", default="sqlite.db"
+    )
+    parser.add_argument(
+        "--faiss_file", default="faiss.index"
+    )
+    parser.add_argument(
+        "--bigdl_llm_serving_base", default="http://localhost:8000/v1"
+    )
     args = parser.parse_args()
+    global sqlite_file
+    global faiss_file
+    global bigdl_llm_serving_base
+    sqlite_file = args.sqlite_file
+    faiss_file = args.faiss_file
+    bigdl_llm_serving_base = args.bigdl_llm_serving_base
+    init_cache()
 
     uvicorn.run(app, host=args.host, port=args.port)
 
