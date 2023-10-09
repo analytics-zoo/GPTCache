@@ -59,6 +59,9 @@ cache.set_bigdl_llm_serving()
 async def hello():
     return "hello gptcache server"
 
+class CacheData(BaseModel):
+    prompt: str
+    answer: Optional[str] = ""
 
 @app.post("/put")
 async def put_cache(cache_data: CacheData) -> str:
