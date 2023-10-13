@@ -29,7 +29,7 @@ openai_cache: Optional[Cache] = None
 
 sqlite_file = "sqlite.db"
 faiss_file = "faiss.index"
-bigdl_llm_serving_base = "http://localhost:8000/v1"
+bigdl_llm_serving_base = "http://api:8000/v1"
 def init_cache():
     embedding_onnx = EmbeddingOnnx()
     class WrapEvaluation(SearchDistanceEvaluation):
